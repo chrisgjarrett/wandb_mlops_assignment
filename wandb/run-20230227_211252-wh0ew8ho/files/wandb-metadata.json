@@ -1,0 +1,33 @@
+{
+    "os": "macOS-13.0.1-arm64-arm-64bit",
+    "python": "3.8.16",
+    "heartbeatAt": "2023-02-27T21:12:53.327762",
+    "startedAt": "2023-02-27T21:12:52.947687",
+    "docker": null,
+    "cuda": null,
+    "args": null,
+    "state": "running",
+    "program": "main-jvsc-1d824d29-6cd3-4126-8c4b-a63d9e4e3048bba02883-5d8a-4a2e-9456-b8295ba29292.ipynb",
+    "root": "/Users/chrisjarrett/Documents/Personal/Data Projects/wandb_mlops_assignment",
+    "git": {
+        "remote": "git@github.com:chrisgjarrett/wandb_mlops_assignment.git",
+        "commit": "c16bf586c876c7999d879df9f5aaf37c2788173c"
+    },
+    "email": "chris.jarrett@acurable.com",
+    "host": "192.168.1.162",
+    "username": "chrisjarrett",
+    "executable": "/opt/miniconda3/envs/wandb_course/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 8,
+    "disk": {
+        "total": 460.4317207336426,
+        "used": 184.8599739074707
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 16.0
+    }
+}
