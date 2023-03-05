@@ -130,3 +130,6 @@ dmypy.json
 
 # Files specific to this project
 data/*
+artifacts/*
+wandb/*
+models/*
