@@ -1,6 +1,10 @@
 from fastai.vision.all import *
 import wandb
 
+def t_or_f(arg):
+    ua = str(arg).upper()
+    if 'TRUE'.startswith(ua): return True
+    else: return False
 
 def get_predictions(learner, test_dl=None, max_n=None):
     """Return the samples = (x,y) and outputs (model predictions decoded), and predictions (raw preds)"""
