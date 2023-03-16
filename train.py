@@ -10,7 +10,7 @@ from fastai.callback.wandb import WandbCallback
 from utils import get_predictions, create_predictions_table
 from sklearn.metrics import f1_score, balanced_accuracy_score 
 import params
-from utils import t_or_f, get_df, download_data, get_data
+from utils import t_or_f, get_df, download_data, get_data, log_predictions
 
 # defaults
 default_config = SimpleNamespace(

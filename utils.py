@@ -1,6 +1,9 @@
 from fastai.vision.all import *
 import wandb
 import params
+from sklearn.metrics import ConfusionMatrixDisplay
+from IPython.display import display, Markdown
+import seaborn as sns
 
 def t_or_f(arg):
     ua = str(arg).upper()
@@ -53,7 +56,9 @@ def get_df(processed_dataset_dir, is_test=False):
         df = df[df.Stage != 'test'].reset_index(drop=True)
         df['is_valid'] = df.Stage == 'valid'
     else:
-        df = df[df.Stage == 'test'].reset_index(drop=True)
+        df = df[df.Stage != 'train'].reset_index(drop=True)
+        df['is_valid'] = df.Stage == 'valid'
+        # when passed to datablock, this will return test at index 0 and valid at index 1
           
     # assign paths
     df["image_fname"] = [processed_dataset_dir/f'images/{f}' for f in df.Filename.values]    
@@ -78,3 +83,60 @@ def log_predictions(learn):
     table = create_predictions_table(samples, predictions)
     wandb.log({"pred_table":table})
     
+
+def display_diagnostics(learner, ds_idx=1, return_vals=False):
+    """
+    Display a confusion matrix for the unet learner.
+    If `dls` is None it will get the validation set from the Learner
+    
+    You can create a test dataloader using the `test_dl()` method like so:
+    >> dls = ... # You usually create this from the DataBlocks api, in this library it is get_data()
+    >> tdls = dls.test_dl(test_dataframe, with_labels=True)
+    
+    See: https://docs.fast.ai/tutorial.pets.html#adding-a-test-dataloader-for-inference
+    
+    """
+    probs, targs = learner.get_preds(ds_idx=ds_idx)
+    preds = probs.argmax(dim=1)
+    classes = list(params.CLASSES.values())
+    y_true = targs.flatten().numpy()
+    y_pred = preds.flatten().numpy()
+    
+    tdf, pdf = [pd.DataFrame(r).value_counts().to_frame(c) for r,c in zip((y_true, y_pred) , ['y_true', 'y_pred'])]
+    countdf = tdf.join(pdf, how='outer').reset_index(drop=True).fillna(0).astype(int).rename(index= params.CLASSES)
+    countdf = countdf/countdf.sum() 
+    display(Markdown('### % Of Pixels In Each Class'))
+    display(countdf.style.format('{:.1%}'))
+    
+    
+    disp = ConfusionMatrixDisplay.from_predictions(y_true=y_true, y_pred=y_pred,
+                                                   display_labels=classes,
+                                                   normalize='pred')
+    fig = disp.ax_.get_figure()
+    fig.set_figwidth(10)
+    fig.set_figheight(10) 
+    disp.ax_.set_title('Confusion Matrix', fontdict={'fontsize': 32, 'fontweight': 'medium'})
+    fig.show()
+    fig.autofmt_xdate(rotation=45)
+
+    if return_vals: return countdf, disp
+
+
+def check_data_partition(df, img_path):
+    
+    (df
+    .groupby("Stage")["Class"]
+    .value_counts(normalize=True)
+    .mul(100)
+    .rename('percent')
+    .reset_index()
+    .pipe((sns.catplot,'data'), x="Stage",y='percent',hue="Class",kind='bar'))
+
+    # Log image to wandb
+    plt.ylabel("Percentage of dataset")
+    plt.title("Class distribution across stage")
+    plt.ylabel("Percentage of dataset")
+    plt.savefig(img_path)
+    plt.clf()
+    im = plt.imread(f'{img_path}.png')
+    wandb.log({img_path: wandb.Image(f'{img_path}.png', caption=img_path)})

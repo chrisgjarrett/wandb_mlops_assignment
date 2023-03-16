@@ -1,69 +1,39 @@
 import wandb
+import json
 import torchvision.models as tvmodels
 import pandas as pd
 from fastai.vision.all import *
+from fastai.callback.wandb import WandbCallback
 
 import params
-from utils import get_predictions, create_iou_table, MIOU, BackgroundIOU, \
-                  RoadIOU, TrafficLightIOU, TrafficSignIOU, PersonIOU, VehicleIOU, BicycleIOU, \
-                  t_or_f, display_diagnostics, download_data
+from utils import download_data, get_data, get_df, log_predictions, display_diagnostics, check_data_partition
 
 
-def label_func(fname):
-    return (fname.parent.parent/"labels")/f"{fname.stem}_mask.png"
-        
-def get_df(processed_dataset_dir, is_test=False):
-    df = pd.read_csv(processed_dataset_dir / 'data_split.csv')
-    
-    if not is_test:
-        df = df[df.Stage != 'test'].reset_index(drop=True)
-        df['is_valid'] = df.Stage == 'valid'
-    else:
-        df = df[df.Stage != 'train'].reset_index(drop=True)
-        df['is_valid'] = df.Stage == 'valid'
-        # when passed to datablock, this will return test at index 0 and valid at index 1
-    
-    # assign paths
-    df["image_fname"] = [processed_dataset_dir/f'images/{f}' for f in df.File_Name.values]
-    df["label_fname"] = [label_func(f) for f in df.image_fname.values]
-    return df
-
-def get_data(df, bs=4, img_size=180, augment=True):
-    block = DataBlock(blocks=(ImageBlock, MaskBlock(codes=params.BDD_CLASSES)),
-                  get_x=ColReader("image_fname"),
-                  get_y=ColReader("label_fname"),
-                  splitter=ColSplitter(),
-                  item_tfms=Resize((img_size, int(img_size * 16 / 9))),
-                  batch_tfms=aug_transforms() if augment else None,
-                 )
-    return block.dataloaders(df, bs=bs)
-
-def log_predictions(learn):
-    "Log a Table with model predictions and metrics"
-    samples, outputs, predictions = get_predictions(learn)
-    table = create_iou_table(samples, outputs, predictions, params.BDD_CLASSES)
-    wandb.log({"val_pred_table":table})
-    
 def count_by_class(arr, cidxs): 
-    return [(arr == n).sum(axis=(1,2)).numpy() for n in cidxs]
+    return [np.sum(np.where(arr == n)) for n in cidxs]
 
 def log_hist(c):
-    _, bins, _ = plt.hist(target_counts[c],  bins=10, alpha=0.5, density=True, label='target')
+    _, bins, _ = plt.hist(target_counts[c],  bins=2, alpha=0.5, density=True, label='target')
     _ = plt.hist(pred_counts[c], bins=bins, alpha=0.5, density=True, label='pred')
     plt.legend(loc='upper right')
-    plt.title(params.BDD_CLASSES[c])
-    img_path = f'hist_val_{params.BDD_CLASSES[c]}'
+    plt.title(params.CLASSES[c])
+    img_path = f'hist_val_{params.CLASSES[c]}'
     plt.savefig(img_path)
     plt.clf()
     im = plt.imread(f'{img_path}.png')
     wandb.log({img_path: wandb.Image(f'{img_path}.png', caption=img_path)})
 
+
 run = wandb.init(project=params.WANDB_PROJECT, entity=params.ENTITY, job_type="evaluation", tags=['staging'])
 
-artifact = run.use_artifact('av-team/model-registry/BDD Semantic Segmentation:latest', type='model')
+# Get model registry
+with open("secrets.json") as f:
+    data = json.load(f)
+    registry_link = data["model_registry"]
 
+# Get model artifact and path
+artifact = run.use_artifact(registry_link, type='model')
 artifact_dir = Path(artifact.download())
-
 _model_pth = artifact_dir.ls()[0]
 model_path = _model_pth.parent.absolute()/_model_pth.stem
 
@@ -73,17 +43,23 @@ config = wandb.config
 
 processed_dataset_dir = download_data()
 test_valid_df = get_df(processed_dataset_dir, is_test=True)
-test_valid_dls = get_data(test_valid_df, bs=config.batch_size, img_size=config.img_size, augment=config.augment)
+test_valid_dls = get_data(processed_dataset_dir, test_valid_df, bs=config.batch_size, img_size=config.img_size, augment=config.augment)
 
-metrics = [MIOU(), BackgroundIOU(), RoadIOU(), TrafficLightIOU(),
-           TrafficSignIOU(), PersonIOU(), VehicleIOU(), BicycleIOU()]
+# Check distribution of classes 
+check_data_partition(test_valid_df, f'Class dist test')
 
-cbs = [MixedPrecision()] if config.mixed_precision else []
+metrics = [F1Score(), BalancedAccuracy()]
 
-learn = unet_learner(test_valid_dls, arch=getattr(tvmodels, config.arch), pretrained=config.pretrained, 
-                     metrics=metrics)
+cbs = [
+    SaveModelCallback(monitor='f1_score'),
+    WandbCallback(log_preds=False, log_model=True)
+]
+cbs += ([MixedPrecision()] if config.mixed_precision else [])
 
-learn.load(model_path);
+learn = vision_learner(test_valid_dls, arch=getattr(tvmodels, config.arch), pretrained=config.pretrained, 
+                        metrics=metrics)
+
+learn.load(model_path)
 
 val_metrics = learn.validate(ds_idx=1)
 test_metrics = learn.validate(ds_idx=0)
@@ -102,7 +78,7 @@ log_predictions(learn)
 
 val_probs, val_targs = learn.get_preds(ds_idx=1)
 val_preds = val_probs.argmax(dim=1)
-class_idxs = params.BDD_CLASSES.keys()
+class_idxs = params.CLASSES.keys()
 
 target_counts = count_by_class(val_targs, class_idxs)
 pred_counts = count_by_class(val_preds, class_idxs)

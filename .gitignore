@@ -133,3 +133,4 @@ data/*
 artifacts/*
 wandb/*
 models/*
+secrets.json
