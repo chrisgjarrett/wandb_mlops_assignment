@@ -10,7 +10,7 @@ from fastai.callback.wandb import WandbCallback
 from utils import get_predictions, create_predictions_table
 from sklearn.metrics import f1_score, balanced_accuracy_score 
 import params
-from utils import t_or_f
+from utils import t_or_f, get_df, download_data, get_data
 
 # defaults
 default_config = SimpleNamespace(
@@ -45,49 +45,6 @@ def parse_args():
     vars(default_config).update(vars(args))
     return
 
-
-def download_data():
-    processed_data_at = wandb.use_artifact(f'{params.PROCESSED_DATA_AT}:latest')
-    processed_dataset_dir = Path(processed_data_at.download())
-    return processed_dataset_dir
-
-
-def label_func(fname):
-    return "Not Cancer" in fname
-
-
-def get_df(processed_dataset_dir, is_test=False):
-    df = pd.read_csv(processed_dataset_dir / 'data_split.csv')
-
-    if not is_test:
-        df = df[df.Stage != 'test'].reset_index(drop=True)
-        df['is_valid'] = df.Stage == 'valid'
-    else:
-        df = df[df.Stage == 'test'].reset_index(drop=True)
-          
-    # assign paths
-    df["image_fname"] = [processed_dataset_dir/f'images/{f}' for f in df.Filename.values]    
-    
-    return df
-
-
-def get_data(processed_dataset_dir, df:pd.DataFrame, bs=1, img_size=(180, 320), augment=True):
-    block = DataBlock(blocks=(ImageBlock, CategoryBlock),
-                  get_x=ColReader(0, pref=processed_dataset_dir/"images"),
-                  get_y=ColReader("Class"),
-                  splitter=ColSplitter(),
-                  item_tfms=Resize(img_size),
-                #   batch_tfms=aug_transforms() if augment else None,                 )
-            )
-    return block.dataloaders(df, bs=bs)
-
-
-def log_predictions(learn):
-    "Log a Table with model predictions and metrics"
-    samples, predictions = get_predictions(learn)
-    table = create_predictions_table(samples, predictions)
-    wandb.log({"pred_table":table})
-    
 
 def final_metrics(learn):
     "Log latest metrics values"
