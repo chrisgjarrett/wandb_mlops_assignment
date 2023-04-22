@@ -2,8 +2,7 @@ import os
 import wandb
 import wandb.apis.reports as wbreport
 
-# PROJECT="mlops-cicd-course"
-
+# Get environment variables
 try:
     ENTITY = os.environ["ENTITY"]
     PROJECT = os.environ["PROJECT"]
@@ -13,18 +12,26 @@ except:
     PROJECT = "mlops-course-assignment" 
     RUN_ID = "ihgq68ma"
 
-path = os.path.join(ENTITY, PROJECT, RUN_ID)
-# "chrisgjarrett/mlops-course-assignment/ihgq68ma"
+# Path to model registry
+path=os.path.join(ENTITY, 'model-registry/cancer-image-learner')
 
+# Path to run with model to evaluate
+run_path = os.path.join(ENTITY, PROJECT, RUN_ID)
+
+# Connect to api and get run
 api = wandb.Api()
-run = api.run(path)
+run = api.run(run_path)
 
-artefact = [a for a in run.logged_artifacts() if a.type == 'model']
+# Get the candidate model to be compared
+candidate_model = [a for a in run.logged_artifacts() if a.type == 'model']
 
+# New wandb session for generating report
 wandb.init(entity=ENTITY, project=PROJECT)
 
-# Get model from registry. TODO: Run id should come from comment
-# versions = api.artifact_versions('model', path)
+# Get baseline model from registry.
+api = wandb.Api()
+versions = api.artifact_versions('model', name=path)
+baseline_model = [v for v in versions if "baseline" in v.aliases]
 
 report = wbreport.report.Report(
     entity=ENTITY,
