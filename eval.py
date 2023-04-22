@@ -6,7 +6,7 @@ from fastai.vision.all import *
 from fastai.callback.wandb import WandbCallback
 
 import params
-from utils import download_data, get_data, get_df, log_predictions, display_diagnostics, check_data_partition
+from utils import final_metrics, download_data, get_data, get_df, log_predictions, display_diagnostics, check_data_partition
 
 
 def count_by_class(arr, cidxs): 
@@ -95,5 +95,7 @@ test_count_df, test_disp = display_diagnostics(learner=learn, ds_idx=0, return_v
 wandb.log({'test_confusion_matrix': test_disp.figure_})
 test_ct_table = wandb.Table(dataframe=test_count_df)
 wandb.log({'test_count_table': test_ct_table})
+
+final_metrics(learn)
 
 run.finish()

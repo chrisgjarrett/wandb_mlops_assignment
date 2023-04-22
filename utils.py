@@ -140,3 +140,11 @@ def check_data_partition(df, img_path):
     plt.clf()
     im = plt.imread(f'{img_path}.png')
     wandb.log({img_path: wandb.Image(f'{img_path}.png', caption=img_path)})
+
+def final_metrics(learn):
+    "Log latest metrics values"
+    scores = learn.validate()
+    metric_names = ['final_loss'] + [f'final_{x.name}' for x in learn.metrics]
+    final_results = {metric_names[i] : scores[i] for i in range(len(scores))}
+    for k,v in final_results.items(): 
+        wandb.summary[k] = v

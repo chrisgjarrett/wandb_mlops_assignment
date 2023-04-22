@@ -10,7 +10,7 @@ from fastai.callback.wandb import WandbCallback
 from utils import get_predictions, create_predictions_table
 from sklearn.metrics import f1_score, balanced_accuracy_score 
 import params
-from utils import t_or_f, get_df, download_data, get_data, log_predictions
+from utils import final_metrics, t_or_f, get_df, download_data, get_data, log_predictions
 
 # defaults
 default_config = SimpleNamespace(
@@ -44,15 +44,6 @@ def parse_args():
     args = argparser.parse_args()
     vars(default_config).update(vars(args))
     return
-
-
-def final_metrics(learn):
-    "Log latest metrics values"
-    scores = learn.validate()
-    metric_names = ['final_loss'] + [f'final_{x.name}' for x in learn.metrics]
-    final_results = {metric_names[i] : scores[i] for i in range(len(scores))}
-    for k,v in final_results.items(): 
-        wandb.summary[k] = v
 
 
 def train(config):

@@ -1,0 +1,69 @@
+name: Model Comparison
+on: issue_comment
+
+permissions:
+  issues: write
+  pull-requests: write
+
+env:
+  MAGIC_COMMENT: "/wandb"
+  
+jobs:
+  ghapi:
+    if: (github.event.issue.pull_request != null) && contains(github.event.comment.body, '/wandb')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: see payload # this step is for debugging purposes only, so you can see the payload. 
+      run: echo "PAYLOAD:\n${PAYLOAD}\n"
+      env:
+        PAYLOAD: ${{ toJSON(github.event) }}
+        
+    - name: Parse value from the command
+      id: get-runid-value
+      shell: python
+      run: |
+        import re, os
+        comment = os.getenv('PR_COMMENT', '')
+        match = re.search('/wandb[\s+](\S+)', comment)
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+          if match:
+            print(f'VAL_FOUND=true', file=f)
+            print(f'RUN_ID={match.group(1)}', file=f)
+
+          else:
+            print(f'VAL_FOUND=false', file=f)
+      env:
+        PR_COMMENT: ${{ github.event.comment.body }}
+        
+    - name: print value of magic command
+      if:  steps.get-runid-value.outcome == 'success' && steps.get-runid-value.outputs.VAL_FOUND == 'true'
+      run: echo "the value is this ${{ steps.get-runid-value.outputs.RUN_ID }}"
+
+    - name: Generate the comparison report
+      if: steps.get-runid-value.outputs.VAL_FOUND == 'true'
+      id: wandb-report
+      run: python compare_runs.py
+      env:
+        WANDB_ENTITY: chrisgjarrett
+        WANDB_PROJECT: mlops-course-assignment
+        BASELINE_TAG: baseline
+        RUN_ID: "${{ steps.get-runid-value.outputs.RUN_ID }}"
+        WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+
+    - name: Make a comment with the GitHub API
+      uses: actions/github-script@v6
+      if: steps.wandb-report.outcome == 'success' 
+      with:
+        script: |
+           var msg = `A comparison between the linked run and baseline is available [in this report](${process.env.REPORT_URL})`
+           github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: msg
+            });
+      env:
+        REPORT_URL: "${{ steps.wandb-report.outputs.REPORT_URL }}"
