@@ -2,9 +2,12 @@ import os
 import wandb
 import wandb.apis.reports as wbreport
 
-assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
+# assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
 
-def model_comparison(entity: str, project: str, run_id: str):
+def model_comparison(
+    entity: str='chrisgjarrett', 
+    project: str='mlops-course-assignment', 
+    run_id: str='37e4ipsp'):
     """Takes a run id and compares the model associated with the run to a baseline model.
 
     Args:
@@ -18,7 +21,6 @@ def model_comparison(entity: str, project: str, run_id: str):
     # Allow to override the args with env variables
     entity = os.getenv('WANDB_ENTITY') or entity
     project = os.getenv('WANDB_PROJECT') or project
-    tag = os.getenv('BASELINE_TAG') or tag
     run_id = os.getenv('RUN_ID') or run_id
 
     # Path to run with model to evaluate
@@ -64,3 +66,7 @@ def model_comparison(entity: str, project: str, run_id: str):
             print(f'REPORT_URL={report.url}', file=f)
 
     return report.url
+
+
+if __name__ == '__main__':
+    print(f'The comparison report can found at: {model_comparison()}')
