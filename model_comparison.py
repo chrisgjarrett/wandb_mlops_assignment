@@ -2,49 +2,49 @@ import os
 import wandb
 import wandb.apis.reports as wbreport
 
-# PROJECT="mlops-cicd-course"
+assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
 
-try:
-    ENTITY = os.environ["ENTITY"]
-    PROJECT = os.environ["PROJECT"]
-    RUN_ID = os.environ["RUN_ID"]
-except:
-    ENTITY = "chrisgjarrett"
-    PROJECT = "mlops-course-assignment" 
-    RUN_ID = "ihgq68ma"
+def model_comparison(entity, project, run_id):
+    
+    # Allow to override the args with env variables
+    entity = os.getenv('WANDB_ENTITY') or entity
+    project = os.getenv('WANDB_PROJECT') or project
+    tag = os.getenv('BASELINE_TAG') or tag
+    run_id = os.getenv('RUN_ID') or run_id
 
-path = os.path.join(ENTITY, PROJECT, RUN_ID)
-# "chrisgjarrett/mlops-course-assignment/ihgq68ma"
+    # Path to run with model to evaluate
+    candidate_run_path = os.path.join(entity, project, run_id)
 
-api = wandb.Api()
-run = api.run(path)
+    # Connect to api and get run
+    api = wandb.Api()
+    candidate_run = api.run(candidate_run_path)
 
-artefact = [a for a in run.logged_artifacts() if a.type == 'model']
+    # Get the baseline run
+    runs=api.runs(f'{entity}/{project}', {"tags": {"$in": ["baseline"]}})
+    assert len(runs) == 1, 'There must be exactly one run with the tag "baseline"'
+    baseline_run = runs[0]
 
-wandb.init(entity=ENTITY, project=PROJECT)
+    # New wandb session for generating report
+    wandb.init(entity=entity, project=project)
 
-# Get model from registry. TODO: Run id should come from comment
-# versions = api.artifact_versions('model', path)
+    # Create report
+    report = wbreport.report.Report(
+        entity=entity,
+        project = project,
+        title='Compare runs',
+        description = 'A demo of comparing runs programmatically'
+    )
 
-report = wbreport.report.Report(
-    entity=ENTITY,
-    project = PROJECT,
-    title='Compare runs',
-    description = 'A demo of comparing runs programmatically'
-)
+    # Panel grid
+    pg = wbreport.PanelGrid(
+        runsets=[
+            wbreport.runset.Runset(entity, project, "Run Comparisons").set_filters_with_python_expr(f"ID in ['{baseline_run.id}', '{candidate_run.id}']")
+        ],
+        panels=[
+            wbreport.RunComparer(diff_only='split', layout={'w': 24, 'h':15})
+        ]
+    )
 
-pg = wbreport.PanelGrid(
-    runsets=[
-        wbreport.runset.Runset(ENTITY, PROJECT, "Run Comparisons").set_filters_with_python_expr("Name in ['misunderstood-night-71']")
-    ],
-    panels=[
-        wbreport.RunComparer(diff_only='split', layout={'w': 24, 'h':15})
-    ]
-)
-
-report.blocks = report.blocks[:1] + [pg] + report.blocks[1:]
-report.save()
-print(report.url)
-
-
-# Create a report
+    # Formatting
+    report.blocks = report.blocks[:1] + [pg] + report.blocks[1:]
+    report.save()
