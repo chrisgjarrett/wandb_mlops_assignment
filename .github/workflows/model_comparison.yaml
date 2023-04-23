@@ -61,7 +61,7 @@ jobs:
       if: steps.wandb-report.outcome == 'success' 
       with:
         script: |
-           var msg = `A comparison between the linked run and baseline is available [in this report](os.getenv('REPORT_URL')`
+           var msg = `A comparison between the linked run and baseline is available [in this report](os.getenv('REPORT_URL'))`
            github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
