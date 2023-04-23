@@ -4,8 +4,17 @@ import wandb.apis.reports as wbreport
 
 assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
 
-def model_comparison(entity, project, run_id):
-    
+def model_comparison(entity: str, project: str, run_id: str):
+    """Takes a run id and compares the model associated with the run to a baseline model.
+
+    Args:
+        entity (str): Name of the logged in user.
+        project (str): Name of the project
+        run_id (str): THe id of the run to compare
+
+    Returns:
+        str: A URL to the model comparison report
+    """
     # Allow to override the args with env variables
     entity = os.getenv('WANDB_ENTITY') or entity
     project = os.getenv('WANDB_PROJECT') or project
@@ -48,3 +57,5 @@ def model_comparison(entity, project, run_id):
     # Formatting
     report.blocks = report.blocks[:1] + [pg] + report.blocks[1:]
     report.save()
+
+    return report.url
