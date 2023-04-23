@@ -64,3 +64,7 @@ def model_comparison(entity: str, project: str, run_id: str):
             print(f'REPORT_URL={report.url}', file=f)
 
     return report.url
+
+
+if __name__ == '__main__':
+    print(f'The comparison report can found at: {model_comparison()}')
