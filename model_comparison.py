@@ -57,5 +57,10 @@ def model_comparison(entity: str, project: str, run_id: str):
     # Formatting
     report.blocks = report.blocks[:1] + [pg] + report.blocks[1:]
     report.save()
-    print(report.url)
+
+    # Write report url to github env
+    if os.getenv('CI'): # is set to `true` in GitHub Actions https://docs.github.com/en/actions/learn-github-actions/variables#default-environment-variables
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f: # write the output variable REPORT_URL to the GITHUB_OUTPUT file
+            print(f'REPORT_URL={report.url}', file=f)
+
     return report.url
