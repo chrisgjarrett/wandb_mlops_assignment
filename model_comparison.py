@@ -2,7 +2,7 @@ import os
 import wandb
 import wandb.apis.reports as wbreport
 
-# assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
+assert os.getenv('WANDB_API_KEY'), 'You must set the WANDB_API_KEY environment variable'
 
 def model_comparison(
     entity: str='chrisgjarrett', 
