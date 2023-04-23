@@ -20,7 +20,10 @@ jobs:
       run: echo "PAYLOAD:\n${PAYLOAD}\n"
       env:
         PAYLOAD: ${{ toJSON(github.event) }}
-        
+    
+    - name: install dependencies
+      run: pip install ghapi wandb
+
     - name: Parse value from the command
       id: get-runid-value
       shell: python
