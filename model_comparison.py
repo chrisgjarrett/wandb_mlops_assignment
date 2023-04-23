@@ -57,5 +57,5 @@ def model_comparison(entity: str, project: str, run_id: str):
     # Formatting
     report.blocks = report.blocks[:1] + [pg] + report.blocks[1:]
     report.save()
-
+    print(report.url)
     return report.url

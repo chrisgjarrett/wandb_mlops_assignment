@@ -57,7 +57,7 @@ jobs:
         WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
 
     - name: print output
-      run: echo "the value is this ${{process.env.REPORT_URL}}"
+      run: echo "the value is this ${process.env.REPORT_URL}"
 
     - name: Make a comment with the GitHub API
       uses: actions/github-script@v6
